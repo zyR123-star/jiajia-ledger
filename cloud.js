@@ -79,7 +79,7 @@
       body: options.body ? JSON.stringify(options.body) : undefined
     });
     const data = await parseResponse(response);
-    if (!response.ok) throw new Error(apiMessage(data, "登录服务暂时不可用"));
+    if (!response.ok) throw cloudError(response, data, "登录服务暂时不可用");
     return data;
   }
 
@@ -105,6 +105,19 @@
       body: { email, password }
     });
     return persistSession(normalizeSession(data));
+  }
+
+  async function resendConfirmation(email) {
+    return authRequest("/auth/v1/resend", {
+      method: "POST",
+      body: {
+        type: "signup",
+        email,
+        options: {
+          email_redirect_to: `${window.location.origin}${window.location.pathname}`
+        }
+      }
+    });
   }
 
   async function restoreSession() {
@@ -180,7 +193,7 @@
     }
 
     const data = await parseResponse(response);
-    if (!response.ok) throw new Error(apiMessage(data, "共享账本请求失败"));
+    if (!response.ok) throw cloudError(response, data, "共享账本请求失败");
     return data;
   }
 
@@ -261,6 +274,13 @@
     return data?.message || data?.msg || data?.error_description || data?.error || fallback;
   }
 
+  function cloudError(response, data, fallback) {
+    const error = new Error(apiMessage(data, fallback));
+    error.code = data?.error_code || data?.code || "";
+    error.status = response.status;
+    return error;
+  }
+
   window.JiajiaCloud = {
     configured,
     getConfig,
@@ -268,6 +288,7 @@
     clearConfig,
     signUp,
     signIn,
+    resendConfirmation,
     restoreSession,
     signOut,
     getSession,

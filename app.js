@@ -553,6 +553,7 @@
           <span><svg><use href="#i-cloud"></use></svg></span>
           <span><strong>共享服务已配置</strong><small>${escapeHtml(cloud.getConfig().url)}</small></span>
         </div>
+        <p class="cloud-note">使用邮箱和密码注册，不需要 GitHub 账号。</p>
         <div class="cloud-form">
           <label class="cloud-field"><span>昵称</span><input id="cloudNameInput" type="text" maxlength="20" placeholder="佳嘉" autocomplete="nickname"></label>
           <label class="cloud-field"><span>邮箱</span><input id="cloudEmailInput" type="email" placeholder="name@example.com" autocomplete="email"></label>
@@ -561,6 +562,7 @@
             <button class="cloud-button primary" type="button" data-cloud-action="signin" ${state.cloudBusy ? "disabled" : ""}>登录</button>
             <button class="cloud-button" type="button" data-cloud-action="signup" ${state.cloudBusy ? "disabled" : ""}>注册</button>
           </div>
+          <button class="cloud-button" type="button" data-cloud-action="resend" ${state.cloudBusy ? "disabled" : ""}>重发验证邮件</button>
           <button class="cloud-button danger" type="button" data-cloud-action="reset-config">清除服务配置</button>
         </div>
         ${cloudMessageHtml()}`;
@@ -637,10 +639,11 @@
       }
 
       if (action === "signin" || action === "signup") {
-        const email = elements.cloudPanel.querySelector("#cloudEmailInput")?.value.trim() || "";
+        const email = elements.cloudPanel.querySelector("#cloudEmailInput")?.value.trim().toLowerCase() || "";
         const password = elements.cloudPanel.querySelector("#cloudPasswordInput")?.value || "";
         const displayName = elements.cloudPanel.querySelector("#cloudNameInput")?.value.trim() || "";
-        if (!email || !password) throw new Error("请填写邮箱和密码");
+        if (!isValidEmail(email)) throw new Error("邮箱格式不正确，请填写完整地址，例如 name@qq.com");
+        if (password.length < 6) throw new Error("密码至少需要 6 位");
         state.cloudBusy = true;
         renderCloudPanel();
         if (action === "signup") {
@@ -653,6 +656,16 @@
           await cloud.signIn(email, password);
         }
         await connectCloud();
+        return;
+      }
+
+      if (action === "resend") {
+        const email = elements.cloudPanel.querySelector("#cloudEmailInput")?.value.trim().toLowerCase() || "";
+        if (!isValidEmail(email)) throw new Error("邮箱格式不正确，请填写完整地址，例如 name@qq.com");
+        state.cloudBusy = true;
+        renderCloudPanel();
+        await cloud.resendConfirmation(email);
+        state.cloudMessage = "验证邮件已重新发送，请检查收件箱和垃圾邮件";
         return;
       }
 
@@ -700,8 +713,8 @@
         showToast("已退出共享账本");
       }
     } catch (error) {
-      console.error(error);
-      state.cloudMessage = error.message || "操作失败，请稍后重试";
+      console.warn("Cloud action failed", error.message);
+      state.cloudMessage = friendlyCloudError(error, action);
       state.cloudMessageType = "error";
     } finally {
       state.cloudBusy = false;
@@ -718,6 +731,21 @@
     state.cloudOffline = false;
     state.transactions = db ? await dbGetAll() : [];
     renderAll();
+  }
+
+  function isValidEmail(value) {
+    return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(value);
+  }
+
+  function friendlyCloudError(error, action) {
+    const code = String(error?.code || "").toLowerCase();
+    const status = Number(error?.status || 0);
+    if (code === "email_address_invalid") return "邮箱地址无效，请填写能正常收信的完整邮箱";
+    if (code === "email_exists" || code === "user_already_exists") return "这个邮箱已经注册，请直接登录";
+    if (code === "email_not_confirmed") return "邮箱还没有完成验证，请先打开确认邮件";
+    if (code === "invalid_credentials") return "邮箱或密码不正确";
+    if (status === 429 || code.includes("rate_limit")) return "邮件发送太频繁，请稍等几分钟再试";
+    return error?.message || (action === "signup" ? "注册失败，请稍后再试" : "操作失败，请稍后再试");
   }
 
   function setView(view) {

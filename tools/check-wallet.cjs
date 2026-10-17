@@ -84,6 +84,11 @@ async function main() {
     await page.click('.tab[data-view="settings"]');
     assert(await text(page, "#recordSummary") === "2 笔可见账单", "设置页账单数量不正确");
     assert((await text(page, "#cloudPanel")).includes("共享服务已配置"), "共享账本登录入口未显示");
+    assert(await page.locator('[data-cloud-action="resend"]').isVisible(), "重发验证邮件入口未显示");
+    await page.fill("#cloudEmailInput", "not-an-email");
+    await page.fill("#cloudPasswordInput", "123456");
+    await page.click('[data-cloud-action="signup"]');
+    assert((await text(page, "#cloudPanel")).includes("邮箱格式不正确"), "注册邮箱校验没有给出中文提示");
 
     const [download] = await Promise.all([
       page.waitForEvent("download"),

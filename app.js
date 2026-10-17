@@ -744,6 +744,12 @@
     if (code === "email_exists" || code === "user_already_exists") return "这个邮箱已经注册，请直接登录";
     if (code === "email_not_confirmed") return "邮箱还没有完成验证，请先打开确认邮件";
     if (code === "invalid_credentials") return "邮箱或密码不正确";
+    if (/login failed/i.test(String(error?.message || ""))) {
+      return "登录失败：请确认使用的是注册时填写的完整邮箱和同一个密码";
+    }
+    if (/failed to fetch|network|fetch/i.test(String(error?.message || ""))) {
+      return "无法连接登录服务，请检查网络后重试";
+    }
     if (status === 429 || code.includes("rate_limit")) {
       return action === "signin"
         ? "登录尝试过于频繁，请等 5 分钟后再试"

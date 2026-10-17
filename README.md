@@ -19,13 +19,13 @@
 - 私密账单由数据库行级权限拦截，不会同步到对方设备。
 - 首页和统计只汇总当前账号实际有权查看的账单。
 
-## 连接 Supabase
+## 共享服务
 
-1. 在 Supabase 创建免费项目。
-2. 打开 SQL Editor，执行 `supabase/schema.sql`。
-3. 在项目设置中取得 Project URL 和 anon public key。
-4. 打开佳嘉记账，在“设置 → 共享账本”中填写两个值。
-5. 双方分别注册账号；一方把 6 位配对码发给另一方完成配对。
+共享服务已经在 `config.js` 中预先配置，默认连接项目 `jiajia-duoduo-ledger`。
+
+1. 打开佳嘉记账的“设置 → 共享账本”。
+2. 注册并登录自己的账号。
+3. 一方把 6 位配对码发给另一方完成配对。
 
 不要把 `service_role` key 填进应用。应用只需要 Project URL 和 anon public key。
 多多钱包也使用同一份数据库脚本；两个应用只需在同一个 Supabase 项目执行一次。
@@ -51,5 +51,6 @@
 - `app.js`：记账、统计、筛选、备份与导入。
 - `cloud.js`：Supabase 登录、配对和共享账单接口。
 - `supabase/schema.sql`：数据库表、配对函数和行级权限。
+- `supabase/migrations/`：已推送到真实 Supabase 项目的迁移记录。
 - `sw.js`：离线缓存。
 - `tools/server.cjs`：本地静态服务。

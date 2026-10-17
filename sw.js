@@ -1,10 +1,11 @@
 /* 改动页面文件后同步提升 CACHE 版本，联网时会优先取新版本。 */
-const CACHE = "jiajia-ledger-v4";
+const CACHE = "jiajia-ledger-v6";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./config.js",
   "./cloud.js",
   "./manifest.webmanifest",
   "./assets/icon.svg",

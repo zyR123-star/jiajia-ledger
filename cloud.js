@@ -3,7 +3,7 @@
 
   const CONFIG_KEY = "jiajia-cloud-config-v1";
   const SESSION_KEY = "jiajia-cloud-session-v1";
-  let config = readJson(CONFIG_KEY);
+  let config = readJson(CONFIG_KEY) || window.SHARED_LEDGER_CONFIG || null;
   let session = null;
   let refreshTask = null;
 
@@ -89,7 +89,10 @@
       body: {
         email,
         password,
-        data: { display_name: displayName }
+        data: { display_name: displayName },
+        options: {
+          email_redirect_to: `${window.location.origin}${window.location.pathname}`
+        }
       }
     });
     if (data.access_token) persistSession(normalizeSession(data));

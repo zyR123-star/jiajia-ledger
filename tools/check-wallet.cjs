@@ -83,7 +83,7 @@ async function main() {
 
     await page.click('.tab[data-view="settings"]');
     assert(await text(page, "#recordSummary") === "2 笔可见账单", "设置页账单数量不正确");
-    assert((await text(page, "#cloudPanel")).includes("连接两个人"), "共享账本配置入口未显示");
+    assert((await text(page, "#cloudPanel")).includes("共享服务已配置"), "共享账本登录入口未显示");
 
     const [download] = await Promise.all([
       page.waitForEvent("download"),

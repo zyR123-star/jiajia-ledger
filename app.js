@@ -744,7 +744,11 @@
     if (code === "email_exists" || code === "user_already_exists") return "这个邮箱已经注册，请直接登录";
     if (code === "email_not_confirmed") return "邮箱还没有完成验证，请先打开确认邮件";
     if (code === "invalid_credentials") return "邮箱或密码不正确";
-    if (status === 429 || code.includes("rate_limit")) return "邮件发送太频繁，请稍等几分钟再试";
+    if (status === 429 || code.includes("rate_limit")) {
+      return action === "signin"
+        ? "登录尝试过于频繁，请等 5 分钟后再试"
+        : "邮件发送太频繁，请等几分钟再试";
+    }
     return error?.message || (action === "signup" ? "注册失败，请稍后再试" : "操作失败，请稍后再试");
   }
 

@@ -553,7 +553,7 @@
           <span><svg><use href="#i-cloud"></use></svg></span>
           <span><strong>共享服务已配置</strong><small>${escapeHtml(cloud.getConfig().url)}</small></span>
         </div>
-        <p class="cloud-note">使用邮箱和密码注册，不需要 GitHub 账号。</p>
+        <p class="cloud-note">使用邮箱和密码注册，不需要 GitHub，也不需要等待验证邮件。</p>
         <div class="cloud-form">
           <label class="cloud-field"><span>昵称</span><input id="cloudNameInput" type="text" maxlength="20" placeholder="佳嘉" autocomplete="nickname"></label>
           <label class="cloud-field"><span>邮箱</span><input id="cloudEmailInput" type="email" placeholder="name@example.com" autocomplete="email"></label>
@@ -562,7 +562,7 @@
             <button class="cloud-button primary" type="button" data-cloud-action="signin" ${state.cloudBusy ? "disabled" : ""}>登录</button>
             <button class="cloud-button" type="button" data-cloud-action="signup" ${state.cloudBusy ? "disabled" : ""}>注册</button>
           </div>
-          <button class="cloud-button" type="button" data-cloud-action="resend" ${state.cloudBusy ? "disabled" : ""}>重发验证邮件</button>
+          ${window.SHARED_LEDGER_CONFIG?.emailConfirmation ? `<button class="cloud-button" type="button" data-cloud-action="resend" ${state.cloudBusy ? "disabled" : ""}>重发验证邮件</button>` : ""}
           <button class="cloud-button danger" type="button" data-cloud-action="reset-config">清除服务配置</button>
         </div>
         ${cloudMessageHtml()}`;

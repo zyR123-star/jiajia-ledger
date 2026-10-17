@@ -84,7 +84,8 @@ async function main() {
     await page.click('.tab[data-view="settings"]');
     assert(await text(page, "#recordSummary") === "2 笔可见账单", "设置页账单数量不正确");
     assert((await text(page, "#cloudPanel")).includes("共享服务已配置"), "共享账本登录入口未显示");
-    assert(await page.locator('[data-cloud-action="resend"]').isVisible(), "重发验证邮件入口未显示");
+    assert((await text(page, "#cloudPanel")).includes("不需要等待验证邮件"), "免验证注册说明未显示");
+    assert(await page.locator('[data-cloud-action="resend"]').count() === 0, "无需邮箱验证时不应显示重发入口");
     await page.fill("#cloudEmailInput", "not-an-email");
     await page.fill("#cloudPasswordInput", "123456");
     await page.click('[data-cloud-action="signup"]');

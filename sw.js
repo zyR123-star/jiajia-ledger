@@ -1,5 +1,5 @@
 /* 改动页面文件后同步提升 CACHE 版本，联网时会优先取新版本。 */
-const CACHE = "jiajia-ledger-v3";
+const CACHE = "jiajia-ledger-v4";
 const ASSETS = [
   "./",
   "./index.html",

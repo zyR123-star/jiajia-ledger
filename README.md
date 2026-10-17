@@ -28,6 +28,7 @@
 5. 双方分别注册账号；一方把 6 位配对码发给另一方完成配对。
 
 不要把 `service_role` key 填进应用。应用只需要 Project URL 和 anon public key。
+多多钱包也使用同一份数据库脚本；两个应用只需在同一个 Supabase 项目执行一次。
 
 ## 本机与云端
 

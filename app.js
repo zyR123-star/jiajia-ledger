@@ -730,6 +730,13 @@
     document.querySelectorAll(".tab").forEach((button) => {
       button.classList.toggle("is-on", button.dataset.view === view);
     });
+    if (view === "settings") {
+      renderSettings();
+      if (state.mode === "cloud") {
+        refreshCloudProfile(false);
+        refreshCloudTransactions(false);
+      }
+    }
     if (location.hash !== `#${view}`) history.replaceState(null, "", `#${view}`);
     window.scrollTo({ top: 0, behavior: "auto" });
   }

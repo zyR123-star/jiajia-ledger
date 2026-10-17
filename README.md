@@ -4,6 +4,8 @@
 
 > 吉祥物「小金币」与多多的云朵共用同一套表情和描边，以暖黄、蓝色星芒和粉色爱心形成对应关系。
 
+正式网址：https://zyr123-star.github.io/jiajia-ledger/
+
 ## 使用
 
 双击 `start-jiajia.cmd`，浏览器会打开 `http://127.0.0.1:4181/`。

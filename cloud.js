@@ -136,16 +136,31 @@
     return getSession();
   }
 
-  async function refreshSession() {
-    if (!session?.refreshToken) throw new Error("登录已过期");
+  async function refreshSession(force = false) {
     if (refreshTask) return refreshTask;
-    refreshTask = (async () => {
+    const task = async () => {
+      const latest = readJson(SESSION_KEY);
+      if (
+        !force
+        && latest?.accessToken
+        && latest.accessToken !== session?.accessToken
+        && latest.expiresAt - Date.now() > 30000
+      ) {
+        session = latest;
+        return getSession();
+      }
+      const refreshToken = latest?.refreshToken || session?.refreshToken;
+      if (!refreshToken) throw new Error("登录已过期");
       const data = await authRequest("/auth/v1/token?grant_type=refresh_token", {
         method: "POST",
-        body: { refresh_token: session.refreshToken }
+        body: { refresh_token: refreshToken }
       });
       return persistSession(normalizeSession(data));
-    })();
+    };
+    const locks = navigator.locks;
+    refreshTask = locks
+      ? locks.request(`${SESSION_KEY}-refresh`, task)
+      : task();
     try {
       return await refreshTask;
     } finally {
@@ -188,7 +203,7 @@
     });
 
     if (response.status === 401 && retry) {
-      await refreshSession();
+      await refreshSession(true);
       return dataRequest(path, options, false);
     }
 

@@ -6,6 +6,7 @@
   const STORE = "transactions";
   const APP_VERSION = 2;
   const CLOUD_CACHE_KEY = "jiajia-visible-transactions-v1";
+  const PROFILE_CACHE_KEY = "jiajia-cloud-profile-v1";
 
   const EXPENSE_CATEGORIES = [
     { id: "exp-food", name: "餐饮", mark: "餐", color: "#ff8fba", soft: "#fff0f6", ink: "#b75c83" },
@@ -88,11 +89,27 @@
     if (window.JiajiaCloud?.configured()) {
       try {
         state.cloudSession = await window.JiajiaCloud.restoreSession();
-        if (state.cloudSession) await connectCloud({ silent: true });
+        if (state.cloudSession) {
+          const cachedProfile = readProfileCache();
+          state.profile = cachedProfile.profile;
+          state.partner = cachedProfile.partner;
+          await connectCloud({ silent: true, sessionReady: true });
+        }
       } catch (error) {
         console.warn("Cloud session restore failed", error);
-        state.cloudMessage = "登录状态已失效，请重新登录";
-        state.cloudMessageType = "error";
+        if (isAuthSessionError(error)) {
+          state.cloudMessage = "登录状态已失效，请重新登录";
+          state.cloudMessageType = "error";
+        } else {
+          const cachedProfile = readProfileCache();
+          state.mode = "cloud";
+          state.cloudOffline = true;
+          state.profile = cachedProfile.profile;
+          state.partner = cachedProfile.partner;
+          state.transactions = readCloudCache();
+          state.cloudMessage = "暂时无法连接共享服务，正在显示缓存";
+          state.cloudMessageType = "";
+        }
       }
     }
 
@@ -220,14 +237,15 @@
     });
   }
 
-  async function connectCloud({ silent = false } = {}) {
+  async function connectCloud({ silent = false, sessionReady = false } = {}) {
     if (!window.JiajiaCloud?.configured()) return;
-    state.cloudSession = await window.JiajiaCloud.restoreSession();
+    if (!sessionReady) state.cloudSession = await window.JiajiaCloud.restoreSession();
     if (!state.cloudSession) return;
     const { own, partner } = await window.JiajiaCloud.getProfile();
     if (!own) throw new Error("没有找到账户档案，请先执行 supabase/schema.sql");
     state.profile = own;
     state.partner = partner;
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile: own, partner }));
     state.mode = "cloud";
     state.cloudMessage = "";
     state.cloudMessageType = "";
@@ -317,6 +335,28 @@
     } catch {
       return [];
     }
+  }
+
+  function readProfileCache() {
+    try {
+      const value = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || "null");
+      return {
+        profile: value?.profile || null,
+        partner: value?.partner || null
+      };
+    } catch {
+      return { profile: null, partner: null };
+    }
+  }
+
+  function isAuthSessionError(error) {
+    const status = Number(error?.status || 0);
+    const code = String(error?.code || "").toLowerCase();
+    const message = String(error?.message || "");
+    return status === 401
+      || code.includes("invalid_grant")
+      || code.includes("refresh_token")
+      || /登录已过期|refresh token/i.test(message);
   }
 
   function currentUserId() {

@@ -8,7 +8,7 @@
 
 ## 使用
 
-双击 `start-jiajia.cmd`，浏览器会打开 `http://127.0.0.1:4181/`。
+双击 `start-jiajia.cmd` 会打开正式网址；本地开发可运行 `node tools/server.cjs`。
 
 在 Edge 或 Safari 中可以把页面安装到桌面或主屏幕。第一次联网打开后，Service Worker 会缓存页面，断网也能继续记账。
 

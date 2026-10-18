@@ -214,7 +214,7 @@
     return dataRequest("/rest/v1/transactions?select=*&order=date.desc,created_at.desc");
   }
 
-  async function saveTransaction(transaction) {
+  async function saveTransaction(transaction, options = {}) {
     const payload = {
       type: transaction.type,
       amount: transaction.amount,
@@ -225,7 +225,7 @@
       visibility: transaction.visibility === "partner" ? "partner" : "private",
       updated_at: new Date().toISOString()
     };
-    if (transaction.id) {
+    if (!options.create) {
       const userId = session?.user?.id;
       if (!userId) throw new Error("登录已过期");
       return dataRequest(
@@ -233,10 +233,10 @@
         { method: "PATCH", body: payload, prefer: "return=representation" }
       );
     }
-    return dataRequest("/rest/v1/transactions", {
+    return dataRequest("/rest/v1/transactions?on_conflict=id", {
       method: "POST",
-      body: payload,
-      prefer: "return=representation"
+      body: { id: transaction.id, ...payload },
+      prefer: "resolution=ignore-duplicates,return=representation"
     });
   }
 

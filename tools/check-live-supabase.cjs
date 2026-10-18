@@ -1,6 +1,7 @@
 const baseUrl = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const anonKey = process.env.SUPABASE_ANON_KEY || "";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const { randomUUID } = require("node:crypto");
 const runId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
 if (!baseUrl || !anonKey || !serviceRoleKey) {
@@ -88,6 +89,32 @@ async function visibleTransactions(token) {
   return result.data || [];
 }
 
+async function verifyIdempotentInsert(token) {
+  const id = randomUUID();
+  const payload = {
+    id,
+    type: "expense",
+    amount: 1234,
+    category_id: "exp-other",
+    account: "现金",
+    date: "2026-10-18",
+    note: "真实测试-幂等账单",
+    visibility: "private"
+  };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await request("/rest/v1/transactions?on_conflict=id", {
+      method: "POST",
+      token,
+      prefer: "resolution=ignore-duplicates,return=representation",
+      body: payload
+    });
+    assert(result.response.ok, "幂等账单写入失败");
+  }
+  const result = await request(`/rest/v1/transactions?id=eq.${id}&select=id`, { token });
+  assert(result.response.ok && result.data?.length === 1, "同一个账单 ID 写入了多条记录");
+  return id;
+}
+
 async function deleteUser(id) {
   await admin(`/auth/v1/admin/users/${id}`, { method: "DELETE" });
 }
@@ -102,6 +129,7 @@ async function main() {
     const tokenB = await signIn(b);
     const profileA = await getProfile(tokenA, a.id);
     const profileB = await getProfile(tokenB, b.id);
+    await verifyIdempotentInsert(tokenA);
 
     const claim = await request("/rest/v1/rpc/claim_invite", {
       method: "POST",
@@ -196,6 +224,7 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       liveSupabase: baseUrl,
+      idempotentInsert: true,
       mutualSharedVisibility: true,
       privateRecordsIsolated: true,
       partnerUpdateBlocked: true,

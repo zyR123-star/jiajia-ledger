@@ -1769,6 +1769,12 @@ main {
   box-shadow: none;
 }
 
+.save-button:disabled {
+  opacity: .62;
+  cursor: wait;
+  transform: none;
+}
+
 .delete-button svg,
 .save-button svg {
   width: 18px;

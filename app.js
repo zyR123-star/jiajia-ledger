@@ -53,10 +53,12 @@
     cloudMessageType: "",
     editingId: null,
     readOnly: false,
+    saving: false,
     draftType: "expense",
     draftCategory: EXPENSE_CATEGORIES[0].id,
     draftAccount: "微信",
-    draftVisibility: "private"
+    draftVisibility: "private",
+    draftTransactionId: null
   };
 
   let db;
@@ -816,6 +818,7 @@
 
   function openSheet(type = "expense", transaction = null) {
     state.editingId = transaction ? transaction.id : null;
+    state.draftTransactionId = transaction ? transaction.id : createId();
     state.readOnly = transaction ? !isOwnTransaction(transaction) : false;
     state.draftType = transaction ? transaction.type : type;
     state.draftCategory = transaction ? transaction.categoryId : CATEGORIES[state.draftType][0].id;
@@ -829,6 +832,7 @@
     elements.readonlyBanner.hidden = !state.readOnly;
     elements.deleteButton.hidden = !transaction || state.readOnly;
     elements.saveButton.hidden = state.readOnly;
+    elements.saveButton.disabled = false;
     [elements.amountInput, elements.dateInput, elements.noteInput].forEach((input) => {
       input.disabled = state.readOnly;
     });
@@ -840,7 +844,8 @@
     if (!state.readOnly) window.setTimeout(() => elements.amountInput.focus(), 120);
   }
 
-  function closeSheet() {
+  function closeSheet(force = false) {
+    if (state.saving && !force) return;
     elements.sheetLayer.hidden = true;
     document.body.style.overflow = "";
     elements.transactionForm.reset();
@@ -851,6 +856,7 @@
     elements.noteInput.disabled = false;
     state.editingId = null;
     state.readOnly = false;
+    state.draftTransactionId = null;
   }
 
   function updateSheetCopy() {
@@ -892,59 +898,63 @@
 
   async function saveTransaction(event) {
     event.preventDefault();
-    if (state.readOnly) return;
-    const amount = Math.round(Number(elements.amountInput.value) * 100);
-    const date = elements.dateInput.value;
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showToast("请先填写金额");
-      elements.amountInput.focus();
-      return;
-    }
-    if (!date) {
-      showToast("请选择账单日期");
-      elements.dateInput.focus();
-      return;
-    }
-
-    const existing = state.transactions.find((item) => item.id === state.editingId);
-    const now = new Date().toISOString();
-    const transaction = {
-      id: existing ? existing.id : null,
-      type: state.draftType,
-      amount,
-      categoryId: state.draftCategory,
-      account: state.draftAccount,
-      date,
-      note: elements.noteInput.value.trim(),
-      visibility: state.draftVisibility,
-      createdAt: existing ? existing.createdAt : now,
-      updatedAt: now
-    };
-
+    if (state.readOnly || state.saving) return;
+    state.saving = true;
+    elements.saveButton.disabled = true;
     try {
+      const amount = Math.round(Number(elements.amountInput.value) * 100);
+      const date = elements.dateInput.value;
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showToast("请先填写金额");
+        elements.amountInput.focus();
+        return;
+      }
+      if (!date) {
+        showToast("请选择账单日期");
+        elements.dateInput.focus();
+        return;
+      }
+
+      const existing = state.transactions.find((item) => item.id === state.editingId);
+      const now = new Date().toISOString();
+      const transaction = {
+        id: state.draftTransactionId || createId(),
+        type: state.draftType,
+        amount,
+        categoryId: state.draftCategory,
+        account: state.draftAccount,
+        date,
+        note: elements.noteInput.value.trim(),
+        visibility: state.draftVisibility,
+        createdAt: existing ? existing.createdAt : now,
+        updatedAt: now
+      };
+
       if (state.mode === "cloud") {
-        await window.JiajiaCloud.saveTransaction(transaction);
+        await window.JiajiaCloud.saveTransaction(transaction, { create: !existing });
         await refreshCloudTransactions(false);
       } else {
-        transaction.id = transaction.id || createId();
         await dbPut(transaction);
         state.transactions = await dbGetAll();
       }
       const savedMonth = new Date(`${date}T00:00:00`);
       state.month = startOfMonth(savedMonth);
-      closeSheet();
+      closeSheet(true);
       renderAll();
       const range = state.draftVisibility === "partner" ? "，对方可见" : "，仅自己可见";
       showToast(existing ? "账单已更新" : `${state.draftType === "expense" ? "支出" : "收入"}已记下${range}`);
     } catch (error) {
       console.error(error);
       showToast(state.mode === "cloud" ? "保存失败，请检查网络后重试" : "保存失败，请再试一次");
+    } finally {
+      state.saving = false;
+      elements.saveButton.disabled = false;
     }
   }
 
   async function deleteCurrentTransaction() {
-    if (!state.editingId || state.readOnly) return;
+    if (!state.editingId || state.readOnly || state.saving) return;
     const item = state.transactions.find((transaction) => transaction.id === state.editingId);
     if (!item) return;
     if (!window.confirm(`确认删除这笔 ${formatCurrency(item.amount)} 的账单吗？`)) return;
@@ -1020,7 +1030,7 @@
         const ownItems = items.filter((item) => !item.ownerId || item.ownerId === currentUserId());
         if (!window.confirm(`备份中有 ${ownItems.length} 笔属于当前账号的账单。将作为新账单导入云端，确认继续吗？`)) return;
         for (const item of ownItems) {
-          await window.JiajiaCloud.saveTransaction({ ...item, id: null });
+          await window.JiajiaCloud.saveTransaction({ ...item, id: createId() }, { create: true });
         }
         await refreshCloudTransactions(false);
         showToast("云端备份已导入");
@@ -1219,7 +1229,14 @@
   }
 
   function createId() {
-    return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
 
   function escapeHtml(value) {

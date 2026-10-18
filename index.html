@@ -167,6 +167,11 @@
           <button type="button" data-filter="expense">支出</button>
           <button type="button" data-filter="income">收入</button>
         </div>
+        <div class="segmented owner-filter" id="ownerFilter" aria-label="账单来源" hidden>
+          <button class="is-on" type="button" data-owner-filter="all">双方</button>
+          <button type="button" data-owner-filter="mine">我的</button>
+          <button type="button" data-owner-filter="partner">对方</button>
+        </div>
         <div class="ledger-content" id="ledgerList"></div>
       </section>
 

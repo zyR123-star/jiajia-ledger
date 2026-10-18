@@ -165,6 +165,14 @@ async function main() {
     assert((await page.locator("#recentList").textContent()).includes("她的奶茶"), "对方共享账单不可见");
     assert((await page.locator("#recentList").textContent()).includes("对方可见"), "共享范围标记缺失");
 
+    await page.click('.tab[data-view="ledger"]');
+    assert(await page.locator("#ownerFilter").isVisible(), "共享账本缺少账单来源筛选");
+    await page.click('[data-owner-filter="partner"]');
+    assert((await text(page, "#ledgerCount")) === "1 笔", "对方账本筛选数量不正确");
+    assert(!(await text(page, "#ledgerList")).includes("自己的网课"), "对方账本里混入了自己的私密账单");
+    await page.click('[data-owner-filter="all"]');
+    await page.click('.tab[data-view="home"]');
+
     await page.locator("#recentList .bill-row", { hasText: "她的奶茶" }).click();
     assert(await page.locator("#readonlyBanner").isVisible(), "对方共享账单没有只读提示");
     assert(await page.locator("#saveButton").isHidden(), "对方共享账单不应允许保存");
@@ -195,6 +203,9 @@ async function main() {
     assert((await page.locator("#cloudPanel").textContent()).includes("佳嘉"), "设置页没有显示对方昵称");
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(shots, "cloud-settings.png"), fullPage: true });
+    await page.click('[data-cloud-action="view-partner"]');
+    assert(await page.locator("#ownerFilter").isVisible(), "查看对方共享账单后没有进入来源筛选");
+    assert((await text(page, "#ledgerCount")) === "1 笔", "快捷查看对方账本数量不正确");
 
     const pairContext = await browser.newContext({
       viewport: { width: 390, height: 844 },

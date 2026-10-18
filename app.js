@@ -40,6 +40,7 @@
     view: "home",
     month: startOfMonth(new Date()),
     filter: "all",
+    ownerFilter: "all",
     search: "",
     transactions: [],
     mode: "local",
@@ -102,7 +103,7 @@
       "recentList", "ledgerCount", "ledgerSearch", "ledgerFilter", "ledgerList",
       "statsDonut", "statsTotal", "statsIncome", "statsBalance", "categoryRank",
       "trendChart", "recordSummary", "storageSummary", "exportJsonButton",
-      "importButton", "importInput", "exportCsvButton", "headerAddButton",
+      "importButton", "importInput", "exportCsvButton", "headerAddButton", "ownerFilter",
       "tabAddButton", "sheetLayer", "sheetBackdrop", "sheetClose", "sheetEyebrow",
       "sheetTitle", "transactionForm", "typeSwitch", "amountInput", "categoryGrid",
       "accountChips", "dateInput", "noteInput", "deleteButton", "saveButton", "toast",
@@ -182,6 +183,13 @@
       elements.ledgerFilter.querySelectorAll("button").forEach((item) => {
         item.classList.toggle("is-on", item === button);
       });
+      renderLedger();
+    });
+
+    elements.ownerFilter.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-owner-filter]");
+      if (!button) return;
+      state.ownerFilter = button.dataset.ownerFilter;
       renderLedger();
     });
 
@@ -398,6 +406,11 @@
     const query = state.search;
     const items = sortTransactions(state.transactions).filter((item) => {
       if (state.filter !== "all" && item.type !== state.filter) return false;
+      if (state.mode === "cloud" && state.ownerFilter !== "all") {
+        const own = isOwnTransaction(item);
+        if (state.ownerFilter === "mine" && !own) return false;
+        if (state.ownerFilter === "partner" && own) return false;
+      }
       if (!query) return true;
       const category = getCategory(item.categoryId);
       return [
@@ -409,9 +422,17 @@
     });
 
     elements.ledgerCount.textContent = `${items.length} 笔`;
+    elements.ownerFilter.hidden = state.mode !== "cloud";
+    elements.ownerFilter.querySelectorAll("button").forEach((button) => {
+      button.classList.toggle("is-on", button.dataset.ownerFilter === state.ownerFilter);
+    });
     elements.ledgerList.innerHTML = items.length
       ? groupTransactions(items)
-      : emptyState(query ? "没有找到相符的账单" : "账本还是空的", query ? "换个关键词试试" : "记一笔后，明细会出现在这里");
+      : state.mode === "cloud" && state.ownerFilter === "partner"
+        ? emptyState("对方还没有共享账单", "对方需要把账单设为“对方可见”")
+        : state.mode === "cloud" && state.ownerFilter === "mine"
+          ? emptyState("你还没有记账", "记一笔后，明细会出现在这里")
+          : emptyState(query ? "没有找到相符的账单" : "账本还是空的", query ? "换个关键词试试" : "记一笔后，明细会出现在这里");
   }
 
   function renderStats() {
@@ -573,11 +594,14 @@
     const partnerName = state.partner?.display_name || "对方";
     const partnerBlock = state.partner
       ? `
-        <div class="partner-strip">
+      <div class="partner-strip">
           <span class="partner-avatar">${escapeHtml(partnerName.slice(0, 1))}</span>
           <div><strong>${escapeHtml(partnerName)}</strong><span>已配对 · 互相只能查看对方允许的内容</span></div>
-        </div>
-        <button class="cloud-button danger" type="button" data-cloud-action="unpair">解除配对</button>`
+      </div>
+      <div class="cloud-actions">
+        <button class="cloud-button primary" type="button" data-cloud-action="view-partner">查看对方共享账单</button>
+        <button class="cloud-button danger" type="button" data-cloud-action="unpair">解除配对</button>
+      </div>`
       : `
         <div class="pair-code">
           <span>把这组配对码发给她</span>
@@ -686,6 +710,12 @@
         return;
       }
 
+      if (action === "view-partner") {
+        state.ownerFilter = "partner";
+        setView("ledger");
+        return;
+      }
+
       if (action === "unpair") {
         if (!window.confirm("确认解除配对？解除后双方都不能再看到对方共享的账单。")) return;
         state.cloudBusy = true;
@@ -728,6 +758,7 @@
     state.cloudSession = null;
     state.profile = null;
     state.partner = null;
+    state.ownerFilter = "all";
     state.cloudOffline = false;
     state.transactions = db ? await dbGetAll() : [];
     renderAll();

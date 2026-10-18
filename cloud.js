@@ -3,9 +3,12 @@
 
   const CONFIG_KEY = "jiajia-cloud-config-v1";
   const SESSION_KEY = "jiajia-cloud-session-v1";
+  const AUTH_DB_NAME = "jiajia-cloud-auth-v1";
+  const AUTH_DB_STORE = "session";
   let config = readJson(CONFIG_KEY) || window.SHARED_LEDGER_CONFIG || null;
   let session = null;
   let refreshTask = null;
+  let authDbPromise = null;
 
   function readJson(key) {
     try {
@@ -18,6 +21,61 @@
   function saveJson(key, value) {
     if (value) localStorage.setItem(key, JSON.stringify(value));
     else localStorage.removeItem(key);
+  }
+
+  function openAuthDb() {
+    if (!("indexedDB" in window)) return Promise.reject(new Error("IndexedDB unavailable"));
+    if (authDbPromise) return authDbPromise;
+    authDbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(AUTH_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(AUTH_DB_STORE)) {
+          request.result.createObjectStore(AUTH_DB_STORE);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return authDbPromise;
+  }
+
+  function authDbRequest(mode, operation) {
+    return openAuthDb().then((database) => new Promise((resolve, reject) => {
+      const transaction = database.transaction(AUTH_DB_STORE, mode);
+      const request = operation(transaction.objectStore(AUTH_DB_STORE));
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }));
+  }
+
+  function writeSessionBackup(value) {
+    return authDbRequest("readwrite", (store) => store.put(value, "current"));
+  }
+
+  function readSessionBackup() {
+    return authDbRequest("readonly", (store) => store.get("current")).catch(() => null);
+  }
+
+  function clearSessionBackup() {
+    return authDbRequest("readwrite", (store) => store.delete("current")).catch(() => {});
+  }
+
+  async function loadStoredSession() {
+    const local = readJson(SESSION_KEY);
+    const backup = await readSessionBackup();
+    if (!backup) return local;
+    if (!local) {
+      saveJson(SESSION_KEY, backup);
+      return backup;
+    }
+    const localTime = Number(local.updatedAt || 0);
+    const backupTime = Number(backup.updatedAt || 0);
+    if (backupTime > localTime) {
+      saveJson(SESSION_KEY, backup);
+      return backup;
+    }
+    if (localTime > backupTime) writeSessionBackup(local).catch(() => {});
+    return local;
   }
 
   function configured() {
@@ -49,6 +107,7 @@
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
+      updatedAt: Date.now(),
       user: data.user || session?.user || null
     };
   }
@@ -56,6 +115,7 @@
   function persistSession(next) {
     session = next;
     saveJson(SESSION_KEY, next);
+    writeSessionBackup(next).catch(() => {});
     return next;
   }
 
@@ -122,7 +182,7 @@
 
   async function restoreSession() {
     if (!configured()) return null;
-    const stored = readJson(SESSION_KEY);
+    const stored = await loadStoredSession();
     if (!stored?.accessToken) return null;
     session = stored;
     if (session.expiresAt && session.expiresAt - Date.now() < 60000) {
@@ -180,6 +240,7 @@
     }
     session = null;
     saveJson(SESSION_KEY, null);
+    await clearSessionBackup();
   }
 
   async function ensureSession() {

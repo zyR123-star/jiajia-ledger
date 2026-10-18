@@ -35,6 +35,7 @@
   };
   const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
   const ACCOUNTS = ["微信", "支付宝", "银行卡", "现金"];
+  const PARTNER_LABEL = "多多";
 
   const state = {
     view: "home",
@@ -232,7 +233,7 @@
     state.cloudMessageType = "";
     await refreshCloudTransactions(false);
     startCloudSync();
-    if (!silent) showToast(partner ? `已连接 ${partner.display_name || "对方"}` : "共享账本已连接");
+    if (!silent) showToast(partner ? `已连接 ${PARTNER_LABEL}` : "共享账本已连接");
     renderAll();
   }
 
@@ -593,7 +594,7 @@
     }
 
     const ownName = state.profile?.display_name || "我";
-    const partnerName = state.partner?.display_name || "对方";
+    const partnerName = PARTNER_LABEL;
     const partnerBlock = state.partner
       ? `
       <div class="partner-strip">
@@ -1109,7 +1110,7 @@
     const metaParts = [category?.name || "未分类", item.account];
     if (showDate) metaParts.unshift(formatBillDate(item.date));
     const privacy = isPartnerEntry
-      ? `<span class="privacy-badge partner-entry"><svg><use href="#i-users"></use></svg>${escapeHtml(state.partner?.display_name || "对方")}</span>`
+      ? `<span class="privacy-badge partner-entry"><svg><use href="#i-users"></use></svg>${PARTNER_LABEL}</span>`
       : item.visibility === "partner"
         ? `<span class="privacy-badge shared"><svg><use href="#i-users"></use></svg>对方可见</span>`
         : `<span class="privacy-badge"><svg><use href="#i-lock"></use></svg>仅自己</span>`;

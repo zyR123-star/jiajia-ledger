@@ -1404,11 +1404,14 @@ main {
   bottom: 0;
   left: 0;
   width: min(100%, 600px);
-  max-height: 92vh;
+  height: 92vh;
+  height: 92dvh;
+  max-height: 840px;
   margin: 0 auto;
   padding: 8px 18px calc(18px + var(--safe-bottom));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 26px 26px 0 0;
   background: var(--surface);
   box-shadow: 0 -12px 44px rgba(40, 28, 44, .18);
@@ -1434,6 +1437,23 @@ main {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+#transactionForm {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sheet-scroll {
+  min-height: 0;
+  flex: 1;
+  padding-bottom: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet-heading h2 {
@@ -1721,9 +1741,9 @@ main {
 }
 
 .sheet-actions {
-  position: sticky;
+  position: relative;
   z-index: 4;
-  bottom: 0;
+  flex: 0 0 auto;
   display: flex;
   gap: 9px;
   margin: 20px -18px calc(-18px - var(--safe-bottom));

@@ -143,6 +143,14 @@ async function main() {
     await narrow.waitForTimeout(400);
     assert(!(await narrow.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), "320px 宽度出现横向溢出");
     assert(await narrow.locator(".save-button").isVisible(), "窄屏保存按钮不可见");
+    const scrollBox = narrow.locator(".sheet-scroll");
+    await scrollBox.hover();
+    await narrow.mouse.wheel(0, 600);
+    await narrow.waitForTimeout(150);
+    const scrollTop = await scrollBox.evaluate((node) => node.scrollTop);
+    assert(scrollTop > 0, "记账弹层无法滚动到备注");
+    await narrow.fill("#noteInput", "备注可以输入");
+    assert(await narrow.inputValue("#noteInput") === "备注可以输入", "备注输入失败");
     await narrow.screenshot({ path: path.join(shots, "sheet-narrow.png"), fullPage: true });
     await narrow.close();
 

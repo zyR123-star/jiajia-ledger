@@ -200,7 +200,7 @@ async function main() {
     await page.screenshot({ path: path.join(shots, "cloud-home.png"), fullPage: true });
     await page.click('.tab[data-view="settings"]');
     assert((await page.locator("#cloudPanel").textContent()).includes("已配对"), "设置页没有显示配对状态");
-    assert((await page.locator("#cloudPanel").textContent()).includes("佳嘉"), "设置页没有显示对方昵称");
+    assert((await page.locator("#cloudPanel").textContent()).includes("多多"), "设置页没有固定显示多多昵称");
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(shots, "cloud-settings.png"), fullPage: true });
     await page.click('[data-cloud-action="view-partner"]');
@@ -252,7 +252,7 @@ async function main() {
     await pairPage.fill("#pairCodeInput", "JIA123");
     await pairPage.click('[data-cloud-action="pair"]');
     await pairPage.waitForFunction(() => document.querySelector("#cloudPanel").textContent.includes("已配对"));
-    assert((await pairPage.locator("#cloudPanel").textContent()).includes("佳嘉"), "配对后没有显示对方昵称");
+    assert((await pairPage.locator("#cloudPanel").textContent()).includes("多多"), "配对后没有固定显示多多昵称");
     await pairContext.close();
 
     assert(errors.length === 0, `浏览器错误：\n${errors.join("\n")}`);

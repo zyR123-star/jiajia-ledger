@@ -191,6 +191,59 @@ main {
   padding: 18px 16px calc(105px + var(--safe-bottom));
 }
 
+.mode-banner {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  padding: 9px 11px;
+  border: 1px solid #dce3ff;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mode-banner-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+}
+
+.mode-banner-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.mode-banner > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.mode-banner strong {
+  font-size: 12px;
+}
+
+.mode-banner small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-banner b {
+  color: var(--primary);
+  font-size: 11px;
+}
+
 .view {
   animation: view-in .24s ease-out both;
 }

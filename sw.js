@@ -1,5 +1,5 @@
 /* 改动页面文件后同步提升 CACHE 版本，联网时会优先取新版本。 */
-const CACHE = "jiajia-ledger-v17";
+const CACHE = "jiajia-ledger-v19";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,6 +27,10 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {

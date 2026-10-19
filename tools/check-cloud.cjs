@@ -161,6 +161,7 @@ async function main() {
   try {
     await page.goto(base, { waitUntil: "networkidle" });
     await page.waitForFunction(() => document.querySelector("#recordSummary").textContent.includes("3 笔"));
+    assert(await page.locator("#modeBanner").isHidden(), "已登录状态不应显示本机账本提示");
     assert((await page.locator("#recentList").textContent()).includes("自己的网课"), "自己的私密账单不可见");
     assert((await page.locator("#recentList").textContent()).includes("她的奶茶"), "对方共享账单不可见");
     assert((await page.locator("#recentList").textContent()).includes("对方可见"), "共享范围标记缺失");

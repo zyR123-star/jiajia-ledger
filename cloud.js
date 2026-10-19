@@ -3,6 +3,7 @@
 
   const CONFIG_KEY = "jiajia-cloud-config-v1";
   const SESSION_KEY = "jiajia-cloud-session-v1";
+  const SESSION_COOKIE = "jiajia_cloud_session";
   const AUTH_DB_NAME = "jiajia-cloud-auth-v1";
   const AUTH_DB_STORE = "session";
   let config = readJson(CONFIG_KEY) || window.SHARED_LEDGER_CONFIG || null;
@@ -21,6 +22,37 @@
   function saveJson(key, value) {
     if (value) localStorage.setItem(key, JSON.stringify(value));
     else localStorage.removeItem(key);
+  }
+
+  function readSessionCookie() {
+    const prefix = `${SESSION_COOKIE}=`;
+    const entry = document.cookie.split("; ").find((item) => item.startsWith(prefix));
+    if (!entry) return null;
+    try {
+      return JSON.parse(decodeURIComponent(entry.slice(prefix.length)));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeSessionCookie(value) {
+    if (!value?.accessToken || !value?.refreshToken) return;
+    const compact = {
+      accessToken: value.accessToken,
+      refreshToken: value.refreshToken,
+      expiresAt: value.expiresAt,
+      updatedAt: value.updatedAt || Date.now(),
+      user: value.user ? { id: value.user.id, email: value.user.email || "" } : null
+    };
+    const encoded = encodeURIComponent(JSON.stringify(compact));
+    if (encoded.length > 3800) return;
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${SESSION_COOKIE}=${encoded}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+  }
+
+  function clearSessionCookie() {
+    const secure = location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
   }
 
   function openAuthDb() {
@@ -63,19 +95,15 @@
   async function loadStoredSession() {
     const local = readJson(SESSION_KEY);
     const backup = await readSessionBackup();
-    if (!backup) return local;
-    if (!local) {
-      saveJson(SESSION_KEY, backup);
-      return backup;
-    }
-    const localTime = Number(local.updatedAt || 0);
-    const backupTime = Number(backup.updatedAt || 0);
-    if (backupTime > localTime) {
-      saveJson(SESSION_KEY, backup);
-      return backup;
-    }
-    if (localTime > backupTime) writeSessionBackup(local).catch(() => {});
-    return local;
+    const cookie = readSessionCookie();
+    const candidates = [local, backup, cookie].filter(Boolean);
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+    const latest = candidates[0];
+    if (latest !== local) saveJson(SESSION_KEY, latest);
+    if (latest !== backup) writeSessionBackup(latest).catch(() => {});
+    if (latest !== cookie) writeSessionCookie(latest);
+    return latest;
   }
 
   function configured() {
@@ -108,7 +136,9 @@
       refreshToken: data.refresh_token,
       expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
       updatedAt: Date.now(),
-      user: data.user || session?.user || null
+      user: data.user
+        ? { id: data.user.id, email: data.user.email || "" }
+        : session?.user || null
     };
   }
 
@@ -116,6 +146,7 @@
     session = next;
     saveJson(SESSION_KEY, next);
     writeSessionBackup(next).catch(() => {});
+    writeSessionCookie(next);
     return next;
   }
 
@@ -188,9 +219,12 @@
     if (session.expiresAt && session.expiresAt - Date.now() < 60000) {
       try {
         await refreshSession();
-      } catch {
-        await signOut(false).catch(() => {});
-        return null;
+      } catch (error) {
+        if (isRefreshAuthError(error)) {
+          await signOut(false).catch(() => {});
+          return null;
+        }
+        return stored;
       }
     }
     return getSession();
@@ -241,6 +275,7 @@
     session = null;
     saveJson(SESSION_KEY, null);
     await clearSessionBackup();
+    clearSessionCookie();
   }
 
   async function ensureSession() {
@@ -355,6 +390,19 @@
     error.code = data?.error_code || data?.code || "";
     error.status = response.status;
     return error;
+  }
+
+  function isRefreshAuthError(error) {
+    const status = Number(error?.status || 0);
+    const code = String(error?.code || "").toLowerCase();
+    const message = String(error?.message || "").toLowerCase();
+    return (status === 400 || status === 401)
+      && (
+        code.includes("invalid_grant")
+        || code.includes("refresh_token")
+        || code.includes("session_not_found")
+        || message.includes("invalid refresh token")
+      );
   }
 
   window.JiajiaCloud = {

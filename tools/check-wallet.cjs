@@ -37,6 +37,7 @@ async function main() {
     await page.goto(base, { waitUntil: "networkidle" });
     assert(await page.locator(".brand").isVisible(), "首页品牌区未显示");
     assert((await text(page, ".brand")).includes("佳嘉记账"), "应用名称没有更新");
+    assert(await page.locator("#modeBanner").isVisible(), "本机账本登录提示未显示");
     assert(await text(page, "#monthExpense") === "¥0.00", "初始支出不是 0");
     await page.screenshot({ path: path.join(shots, "home-light.png"), fullPage: true });
 

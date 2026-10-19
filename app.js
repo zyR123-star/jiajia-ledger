@@ -128,7 +128,7 @@
       "sheetTitle", "transactionForm", "typeSwitch", "amountInput", "categoryGrid",
       "accountChips", "dateInput", "noteInput", "deleteButton", "saveButton", "toast",
       "cloudPanel", "ledgerModeLabel", "syncModeLabel", "readonlyBanner",
-      "visibilitySection", "visibilitySwitch", "editSheet"
+      "visibilitySection", "visibilitySwitch", "editSheet", "modeBanner"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -419,10 +419,15 @@
 
   function renderAll() {
     renderMonthLabels();
+    renderModeBanner();
     renderHome();
     renderLedger();
     renderStats();
     renderSettings();
+  }
+
+  function renderModeBanner() {
+    elements.modeBanner.hidden = state.mode !== "local" || state.view === "settings";
   }
 
   function renderMonthLabels() {
@@ -849,6 +854,7 @@
         refreshCloudTransactions(false);
       }
     }
+    renderModeBanner();
     if (location.hash !== `#${view}`) history.replaceState(null, "", `#${view}`);
     window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -1305,10 +1311,30 @@
     }
   }
 
-  function registerServiceWorker() {
+  async function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("./sw.js").catch((error) => {
-      console.warn("Service worker registration failed", error);
+    let refreshing = false;
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || refreshing) return;
+      refreshing = true;
+      window.location.reload();
     });
+    try {
+      const registration = await navigator.serviceWorker.register("./sw.js");
+      if (registration.waiting) registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+      await registration.update();
+    } catch (error) {
+      console.warn("Service worker registration failed", error);
+    }
   }
 })();
